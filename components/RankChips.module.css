@@ -1,0 +1,19 @@
+.chips { display: flex; gap: 10px; flex-wrap: wrap; margin-bottom: 4px; }
+
+.chip {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 14px;
+  background: var(--bg3);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-sm);
+  min-width: 140px;
+}
+
+.icon { font-size: 28px; line-height: 1; }
+
+.info { display: flex; flex-direction: column; }
+.queue { font-size: 10px; color: var(--muted); text-transform: uppercase; letter-spacing: 0.5px; font-family: var(--font-mono), monospace; }
+.tier { font-size: 15px; font-weight: 700; }
+.lp { font-size: 11px; color: var(--muted); font-family: var(--font-mono), monospace; }

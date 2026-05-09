@@ -1,0 +1,296 @@
+.root {
+  position: relative;
+  z-index: 1;
+  min-height: 100vh;
+}
+
+.wrap {
+  max-width: 960px;
+  margin: 0 auto;
+  padding: 0 24px;
+}
+
+.header {
+  padding: 32px 0 0;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.logo {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 22px;
+  font-weight: 800;
+  letter-spacing: -0.5px;
+  color: var(--text);
+  text-decoration: none;
+}
+
+.logoDot {
+  width: 10px; height: 10px;
+  border-radius: 50%;
+  background: var(--accent);
+  box-shadow: 0 0 12px var(--accent);
+}
+
+.themeBtn {
+  background: var(--bg2);
+  border: 1px solid var(--line2);
+  border-radius: 8px;
+  padding: 6px 10px;
+  cursor: pointer;
+  font-size: 16px;
+  line-height: 1;
+  transition: background 0.15s;
+}
+
+.themeBtn:hover { background: var(--bg3); }
+
+.hero {
+  padding: 56px 0 48px;
+  text-align: center;
+}
+
+.heroTitle {
+  font-size: clamp(36px, 6vw, 64px);
+  font-weight: 800;
+  letter-spacing: -2px;
+  line-height: 1.05;
+  background: linear-gradient(135deg, #f0eeff 30%, #c084fc 70%, #818cf8 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+  margin-bottom: 16px;
+}
+
+[data-theme="light"] .heroTitle {
+  background: linear-gradient(135deg, #2a0a4a 30%, #7c3aed 70%, #4f46e5 100%);
+  -webkit-background-clip: text;
+  background-clip: text;
+}
+
+.heroSub {
+  font-size: 16px;
+  color: var(--muted);
+  max-width: 480px;
+  margin: 0 auto 40px;
+  font-weight: 400;
+  line-height: 1.6;
+}
+
+.searchCard {
+  background: var(--bg2);
+  border: 1px solid var(--line2);
+  border-radius: var(--radius);
+  padding: 24px;
+  max-width: 640px;
+  margin: 0 auto;
+}
+
+.gameTabs {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 20px;
+}
+
+.gameTab {
+  flex: 1;
+  padding: 8px 12px;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--line);
+  background: transparent;
+  cursor: pointer;
+  font-family: var(--font-syne), sans-serif;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--muted);
+  transition: all 0.18s;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+}
+
+.gameTab:hover { border-color: var(--line2); color: var(--text); }
+.gameTab.active[data-game="lol"] { background: rgba(200,155,60,0.15); border-color: var(--lol); color: var(--lol); }
+.gameTab.active[data-game="val"] { background: rgba(255,70,85,0.15); border-color: var(--val); color: var(--val); }
+.gameTab.active[data-game="tft"] { background: rgba(11,196,193,0.15); border-color: var(--tft); color: var(--tft); }
+
+.searchRow {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.inputGroup {
+  display: flex;
+  align-items: center;
+  flex: 1;
+  background: var(--bg3);
+  border: 1px solid var(--line2);
+  border-radius: var(--radius-sm);
+  overflow: hidden;
+  min-width: 220px;
+}
+
+.inputGroup:focus-within { border-color: var(--accent); }
+
+.inputGroup input {
+  flex: 1;
+  background: transparent;
+  border: none;
+  outline: none;
+  padding: 10px 14px;
+  font-family: var(--font-mono), monospace;
+  font-size: 14px;
+  color: var(--text);
+}
+
+.inputGroup input::placeholder { color: var(--muted); }
+
+.tagSep {
+  padding: 0 4px;
+  color: var(--muted);
+  font-family: var(--font-mono), monospace;
+  font-size: 16px;
+  user-select: none;
+}
+
+.platformSelect {
+  background: var(--bg3);
+  border: 1px solid var(--line2);
+  border-radius: var(--radius-sm);
+  padding: 10px 14px;
+  font-family: var(--font-mono), monospace;
+  font-size: 13px;
+  color: var(--text);
+  outline: none;
+  cursor: pointer;
+  min-width: 80px;
+}
+
+.platformSelect:focus { border-color: var(--accent); }
+
+.searchBtn {
+  width: 100%;
+  margin-top: 12px;
+  padding: 12px;
+  background: var(--accent);
+  border: none;
+  border-radius: var(--radius-sm);
+  font-family: var(--font-syne), sans-serif;
+  font-size: 14px;
+  font-weight: 700;
+  color: #0a0a0f;
+  cursor: pointer;
+  letter-spacing: 0.5px;
+  transition: opacity 0.15s, transform 0.1s;
+}
+
+.searchBtn:hover { opacity: 0.9; }
+.searchBtn:active { transform: scale(0.98); }
+
+.statusBar {
+  max-width: 640px;
+  margin: 12px auto 0;
+  font-size: 13px;
+  color: var(--danger);
+  font-family: var(--font-mono), monospace;
+}
+
+/* RECENT / FAVORITES */
+.recentSection {
+  max-width: 640px;
+  margin: 0 auto 40px;
+}
+
+.recentTabs {
+  display: flex;
+  gap: 4px;
+  margin-bottom: 10px;
+}
+
+.recentTab {
+  font-family: var(--font-syne), sans-serif;
+  font-size: 12px;
+  font-weight: 600;
+  padding: 5px 14px;
+  border-radius: 20px;
+  border: 1px solid var(--line);
+  background: transparent;
+  color: var(--muted);
+  cursor: pointer;
+  transition: all 0.15s;
+}
+
+.recentTab:hover { color: var(--text); border-color: var(--line2); }
+.recentTabActive { background: var(--bg2) !important; color: var(--text) !important; border-color: var(--line2) !important; }
+
+.recentList {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.recentItem {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 14px;
+  background: var(--bg2);
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  cursor: pointer;
+  width: 100%;
+  text-align: left;
+  transition: border-color 0.15s, background 0.15s;
+}
+
+.recentItem:hover { border-color: var(--accent); background: rgba(192,132,252,0.05); }
+
+.recentGameBadge {
+  font-size: 9px;
+  font-weight: 700;
+  padding: 2px 7px;
+  border-radius: 4px;
+  font-family: var(--font-mono), monospace;
+  flex-shrink: 0;
+}
+
+.recentGameBadge[data-game="lol"] { background: rgba(200,155,60,0.2); color: var(--lol); }
+.recentGameBadge[data-game="val"] { background: rgba(255,70,85,0.2); color: var(--val); }
+.recentGameBadge[data-game="tft"] { background: rgba(11,196,193,0.2); color: var(--tft); }
+
+.recentName {
+  font-size: 13px;
+  font-weight: 600;
+  flex: 1;
+}
+
+.recentTag {
+  font-size: 12px;
+  color: var(--muted);
+  font-family: var(--font-mono), monospace;
+  margin-left: 4px;
+}
+
+.recentPlatform {
+  font-size: 10px;
+  color: var(--muted);
+  font-family: var(--font-mono), monospace;
+  flex-shrink: 0;
+}
+
+.footer {
+  text-align: center;
+  padding: 48px 0 32px;
+  color: var(--muted);
+  font-size: 12px;
+  font-family: var(--font-mono), monospace;
+}
+
+@media (max-width: 600px) {
+  .searchRow { flex-direction: column; }
+}

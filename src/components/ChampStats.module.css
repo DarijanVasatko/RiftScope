@@ -1,0 +1,37 @@
+.sectionHeader { display: flex; align-items: center; gap: 10px; margin: 28px 0 14px; }
+.sectionTitle { font-size: 13px; font-weight: 700; letter-spacing: 1.5px; text-transform: uppercase; color: var(--muted); white-space: nowrap; }
+.sectionLine { flex: 1; height: 1px; background: var(--line); }
+
+.grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+  gap: 10px;
+  margin-bottom: 28px;
+}
+
+.card {
+  background: var(--bg2);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-sm);
+  padding: 14px;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.icon {
+  width: 44px;
+  height: 44px;
+  border-radius: var(--radius-sm);
+  overflow: hidden;
+  flex-shrink: 0;
+  background: var(--bg4);
+}
+
+.icon img { border-radius: var(--radius-sm); }
+
+.info { flex: 1; min-width: 0; }
+.name { font-size: 13px; font-weight: 700; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.nums { font-size: 11px; color: var(--muted); font-family: var(--font-mono), monospace; margin-top: 2px; }
+
+.wr { font-size: 13px; font-weight: 700; font-family: var(--font-mono), monospace; flex-shrink: 0; }
