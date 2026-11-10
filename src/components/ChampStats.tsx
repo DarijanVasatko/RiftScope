@@ -1,5 +1,6 @@
 import Image from "next/image";
 import { Match } from "@/lib/types";
+import { champIconUrl } from "@/lib/client";
 import styles from "./ChampStats.module.css";
 
 interface Props {
@@ -36,12 +37,11 @@ export default function ChampStats({ matches, puuid }: Props) {
           const wr = Math.round(s.wins / s.games * 100);
           const avgKda = s.deaths > 0 ? ((s.kills + s.assists) / s.deaths).toFixed(2) : "Perfect";
           const wrColor = wr >= 60 ? "var(--accent3)" : wr <= 40 ? "var(--danger)" : "var(--text)";
-          const iconUrl = `https://ddragon.leagueoflegends.com/cdn/14.12.1/img/champion/${name}.png`;
 
           return (
             <div key={name} className={styles.card}>
               <div className={styles.icon}>
-                <Image src={iconUrl} alt={name} width={44} height={44} unoptimized />
+                <Image src={champIconUrl(name)} alt={name} width={44} height={44} unoptimized />
               </div>
               <div className={styles.info}>
                 <div className={styles.name}>{name}</div>

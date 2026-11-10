@@ -1,6 +1,6 @@
 import Image from "next/image";
 import { Match } from "@/lib/types";
-import { QUEUE_LABELS, formatAgo } from "@/lib/client";
+import { QUEUE_LABELS, formatAgo, champIconUrl } from "@/lib/client";
 import styles from "./MatchHistory.module.css";
 
 interface Props {
@@ -26,14 +26,13 @@ export default function MatchHistory({ matches, puuid }: Props) {
           const cs = (p.totalMinionsKilled || 0) + (p.neutralMinionsKilled || 0);
           const mins = match.info?.gameDuration ? Math.floor(match.info.gameDuration / 60) : 0;
           const queueLabel = QUEUE_LABELS[match.info?.queueId] || "Game";
-          const iconUrl = `https://ddragon.leagueoflegends.com/cdn/14.12.1/img/champion/${champ}.png`;
 
           return (
-            <div key={match.metadata.matchId} className={styles.card}>
+            <div key={match.metadata.matchId} className={`${styles.card} ${win ? styles.win : styles.loss}`}>
               <div className={`${styles.bar} ${win ? styles.win : styles.loss}`} />
               <div className={styles.champWrap}>
                 <div className={styles.champIcon}>
-                  <Image src={iconUrl} alt={champ} width={40} height={40} unoptimized />
+                  <Image src={champIconUrl(champ)} alt={champ} width={40} height={40} unoptimized />
                 </div>
                 <div className={styles.champLevel}>Lv.{p.champLevel}</div>
               </div>

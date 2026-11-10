@@ -40,8 +40,15 @@ export interface MatchParticipant {
   neutralMinionsKilled?: number;
   teamId?: number;
   totalDamageDealtToChampions?: number;
+  physicalDamageDealtToChampions?: number;
+  magicDamageDealtToChampions?: number;
+  trueDamageDealtToChampions?: number;
+  totalDamageTaken?: number;
   goldEarned?: number;
+  goldSpent?: number;
   visionScore?: number;
+  wardsPlaced?: number;
+  wardsKilled?: number;
   item0?: number;
   item1?: number;
   item2?: number;
@@ -54,6 +61,7 @@ export interface MatchParticipant {
   perks?: {
     styles?: Array<{
       description: string;
+      style?: number;
       selections: Array<{ perk: number }>;
     }>;
   };
@@ -62,9 +70,12 @@ export interface MatchParticipant {
   tripleKills?: number;
   quadraKills?: number;
   pentaKills?: number;
-  wardsPlaced?: number;
-  wardsKilled?: number;
   firstBloodKill?: boolean;
+  turretKills?: number;
+  inhibitorKills?: number;
+  totalHeal?: number;
+  damageSelfMitigated?: number;
+  timeCCingOthers?: number;
 }
 
 export interface MatchInfo {
@@ -81,6 +92,8 @@ export interface MatchInfo {
       baron?: { kills: number };
       dragon?: { kills: number };
       tower?: { kills: number };
+      inhibitor?: { kills: number };
+      riftHerald?: { kills: number };
     };
   }>;
 }
@@ -97,6 +110,8 @@ export interface LiveParticipant {
   championId: number;
   teamId: number;
   rank?: string;
+  spell1Id?: number;
+  spell2Id?: number;
 }
 
 export interface LiveGame {
@@ -105,18 +120,41 @@ export interface LiveGame {
   participants: LiveParticipant[];
 }
 
+export interface TFTTrait {
+  name: string;
+  num_units: number;
+  style: number;
+  tier_current: number;
+  tier_total: number;
+}
+
+export interface TFTUnit {
+  character_id: string;
+  items: number[];
+  name: string;
+  rarity: number;
+  tier: number;
+}
+
 export interface TFTParticipant {
   puuid: string;
   placement: number;
   level?: number;
-  traits?: unknown[];
-  units?: unknown[];
+  traits?: TFTTrait[];
+  units?: TFTUnit[];
+  augments?: string[];
+  gold_left?: number;
+  last_round?: number;
+  players_eliminated?: number;
+  total_damage_to_players?: number;
 }
 
 export interface TFTMatchInfo {
   game_datetime?: number;
   game_length?: number;
   participants: TFTParticipant[];
+  tft_set_number?: number;
+  tft_set_core_name?: string;
 }
 
 export interface TFTMatch {
@@ -131,6 +169,7 @@ export interface ChampionMastery {
   lastPlayTime: number;
   chestGranted: boolean;
   tokensEarned: number;
+  championName?: string;
 }
 
 export interface SearchHistoryEntry {
@@ -146,4 +185,11 @@ export interface WinLossStat {
   wins: number;
   losses: number;
   wr: number;
+}
+
+export interface LPHistory {
+  date: string;
+  lp: number;
+  tier: string;
+  rank: string;
 }

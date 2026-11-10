@@ -4,14 +4,18 @@ import { useEffect, useState, startTransition } from "react";
 import Link from "next/link";
 import Image from "next/image";
 import {
-  apiFetch, PLATFORM_TO_REGION, champIconUrl, profileIconUrl, itemIconUrl,
-  formatAgo, formatNumber, addToHistory, toggleFavorite, isFavorite, getTheme, setTheme
+  apiFetch, PLATFORM_TO_REGION, champIconUrl, profileIconUrl,
+  formatNumber, addToHistory, toggleFavorite, isFavorite, getTheme, setTheme
 } from "@/lib/client";
 import {
-  RiotAccount, Summoner, RankEntry, Match, MatchParticipant,
-  LiveGame, ChampionMastery, WinLossStat
+  RiotAccount, Summoner, RankEntry, Match,
+  LiveGame, ChampionMastery, WinLossStat, TFTMatch
 } from "@/lib/types";
 import styles from "./PlayerPageClient.module.css";
+import RankChips from "./RankChips";
+import TFTMatchHistory from "./TFTMatchHistory";
+import WinRateDonut from "./player/WinRateDonut";
+import MatchHistoryRow from "./player/MatchHistoryRow";
 
 interface Props {
   gameName: string;
@@ -20,28 +24,17 @@ interface Props {
   game: "lol" | "val" | "tft";
 }
 
-const TIER_ICONS: Record<string, string> = {
-  IRON: "🔩", BRONZE: "🥉", SILVER: "🪙", GOLD: "🥇",
-  PLATINUM: "💠", EMERALD: "💚", DIAMOND: "💎",
-  MASTER: "🔮", GRANDMASTER: "🔥", CHALLENGER: "👑", UNRANKED: "—",
-};
-
-const QUEUE_LABELS: Record<number, string> = {
-  420: "Ranked Solo", 440: "Ranked Flex", 450: "ARAM",
-  400: "Normal Draft", 430: "Normal Blind", 900: "URF",
-};
-
 export default function PlayerPageClient({ gameName, tagLine, platform, game }: Props) {
   const [account, setAccount] = useState<RiotAccount | null>(null);
   const [summoner, setSummoner] = useState<Summoner | null>(null);
   const [rankData, setRankData] = useState<RankEntry[]>([]);
   const [matches, setMatches] = useState<Match[]>([]);
+  const [tftMatches, setTftMatches] = useState<TFTMatch[]>([]);
   const [mastery, setMastery] = useState<ChampionMastery[]>([]);
   const [liveGame, setLiveGame] = useState<LiveGame | null>(null);
   const [winLossData, setWinLossData] = useState<WinLossStat[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
-  const [expandedMatch, setExpandedMatch] = useState<string | null>(null);
   const [favorited, setFavorited] = useState(false);
   const [theme, setThemeState] = useState<"dark" | "light">(() => getTheme());
   const [activeTab, setActiveTab] = useState<"overview" | "matches" | "mastery" | "stats">("overview");
@@ -59,7 +52,7 @@ export default function PlayerPageClient({ gameName, tagLine, platform, game }: 
       if (!byDay[date]) byDay[date] = { wins: 0, losses: 0 };
       if (p.win) byDay[date].wins++; else byDay[date].losses++;
     }
-    return Object.entries(byDay).reverse().slice(0, 10).map(([date, { wins, losses }]) => ({
+    return Object.entries(byDay).slice(0, 10).reverse().map(([date, { wins, losses }]) => ({
       date, wins, losses, wr: wins + losses > 0 ? Math.round(wins / (wins + losses) * 100) : 0
     }));
   }
@@ -76,13 +69,13 @@ export default function PlayerPageClient({ gameName, tagLine, platform, game }: 
       setFavorited(isFavorite(acc.gameName, acc.tagLine, platform));
 
       if (game === "lol") {
-        const sum = await apiFetch<Summoner>(`/api/lol/summoner?puuid=${acc.puuid}&platform=${platform}`);
-        setSummoner(sum);
-        const sumId = sum.id || sum.encryptedSummonerId;
+        const sum = await apiFetch<Summoner>(`/api/lol/summoner?puuid=${acc.puuid}&platform=${platform}`).catch(() => null);
+        if (sum) setSummoner(sum);
+        const sumId = sum?.id || sum?.encryptedSummonerId;
 
         const [ranks, matchIds, mast] = await Promise.all([
           sumId ? apiFetch<RankEntry[]>(`/api/lol/rank?summonerId=${sumId}&platform=${platform}`).catch(() => []) : Promise.resolve([]),
-          apiFetch<string[]>(`/api/lol/matches?puuid=${acc.puuid}&region=${region}&count=20`),
+          apiFetch<string[]>(`/api/lol/matches?puuid=${acc.puuid}&region=${region}&count=20`).catch(() => []),
           apiFetch<ChampionMastery[]>(`/api/lol/mastery?puuid=${acc.puuid}&platform=${platform}&count=12`).catch(() => []),
         ]);
 
@@ -97,11 +90,31 @@ export default function PlayerPageClient({ gameName, tagLine, platform, game }: 
         setMatches(matchDetails);
         setWinLossData(buildWinLoss(matchDetails, acc.puuid));
 
-        if (sumId) {
-          apiFetch<LiveGame>(`/api/lol/live?summonerId=${sumId}&platform=${platform}`)
-            .then(lg => setLiveGame(lg)).catch(() => {});
-        }
+        apiFetch<LiveGame>(`/api/lol/live?puuid=${acc.puuid}&platform=${platform}`)
+          .then(lg => setLiveGame(lg)).catch(() => {});
 
+        addToHistory({ gameName: acc.gameName, tagLine: acc.tagLine, platform, game, timestamp: Date.now() });
+      } else if (game === "tft") {
+        const sum = await apiFetch<Summoner>(`/api/tft/summoner?puuid=${acc.puuid}&platform=${platform}`).catch(() => null);
+        if (sum) setSummoner(sum);
+        const sumId = sum?.id || sum?.encryptedSummonerId;
+
+        const [ranks, matchIds] = await Promise.all([
+          sumId ? apiFetch<RankEntry[]>(`/api/tft/rank?summonerId=${sumId}&platform=${platform}`).catch(() => []) : Promise.resolve([]),
+          apiFetch<string[]>(`/api/tft/matches?puuid=${acc.puuid}&region=${region}&count=20`).catch(() => []),
+        ]);
+
+        setRankData(ranks as RankEntry[]);
+        const matchDetails = (await Promise.all(
+          (matchIds as string[]).slice(0, 20).map((id: string) =>
+            apiFetch<TFTMatch>(`/api/tft/match?matchId=${id}&region=${region}`).catch(() => null)
+          )
+        )).filter(Boolean) as TFTMatch[];
+        setTftMatches(matchDetails);
+
+        addToHistory({ gameName: acc.gameName, tagLine: acc.tagLine, platform, game, timestamp: Date.now() });
+      } else if (game === "val") {
+        await apiFetch<unknown>(`/api/val/matches?puuid=${acc.puuid}&platform=${platform}`).catch(() => null);
         addToHistory({ gameName: acc.gameName, tagLine: acc.tagLine, platform, game, timestamp: Date.now() });
       }
     } catch (e) {
@@ -126,8 +139,9 @@ export default function PlayerPageClient({ gameName, tagLine, platform, game }: 
     setTheme(next);
   }
 
-  const soloQ = rankData.find(r => r.queueType === "RANKED_SOLO_5x5");
-  const flexQ = rankData.find(r => r.queueType === "RANKED_FLEX_SR");
+  const soloQ = rankData.find(e => e.queueType === "RANKED_SOLO_5x5") || null;
+  const flexQ = rankData.find(e => e.queueType === "RANKED_FLEX_SR") || null;
+  const tftRank = rankData.find(e => e.queueType === "RANKED_TFT") || null;
 
   const playerMatches = matches.map(m => ({
     match: m,
@@ -223,32 +237,12 @@ export default function PlayerPageClient({ gameName, tagLine, platform, game }: 
 
         {/* RANK CARDS */}
         <div className={styles.rankRow}>
-          {[soloQ, flexQ].map((entry, i) => {
-            const tier = entry?.tier || "UNRANKED";
-            const wr = entry ? Math.round(entry.wins / (entry.wins + entry.losses) * 100) : 0;
-            return (
-              <div key={i} className={styles.rankCard}>
-                <div className={styles.rankIcon}>{TIER_ICONS[tier] || "—"}</div>
-                <div className={styles.rankInfo}>
-                  <div className={styles.rankQueue}>{i === 0 ? "Solo/Duo" : "Flex"}</div>
-                  <div className={`${styles.rankTier} tier-${tier.toLowerCase()}`}>{tier} {entry?.rank || ""}</div>
-                  {entry && (
-                    <>
-                      <div className={styles.rankLP}>{entry.leaguePoints} LP</div>
-                      <div className={styles.rankRecord}>{entry.wins}W {entry.losses}L · {wr}%</div>
-                    </>
-                  )}
-                </div>
-                {entry && (
-                  <div className={styles.rankWRBar}>
-                    <div className={styles.rankWRFill} style={{ width: `${wr}%`, background: wr >= 60 ? "var(--accent3)" : wr <= 40 ? "var(--danger)" : "var(--accent)" }} />
-                  </div>
-                )}
-              </div>
-            );
-          })}
+          <RankChips 
+            entries={game === "tft" ? [tftRank] : [soloQ, flexQ]} 
+            labels={game === "tft" ? ["TFT RANKED"] : ["SOLO/DUO", "FLEX"]} 
+          />
 
-          {/* live game indicator */}
+          {/* Live game indicator for LoL */}
           {liveGame && (
             <div className={`${styles.rankCard} ${styles.liveCard}`}>
               <div className={styles.livePulse}><span className={styles.liveDot} />LIVE</div>
@@ -262,102 +256,135 @@ export default function PlayerPageClient({ gameName, tagLine, platform, game }: 
 
         {/* TABS */}
         <div className={styles.tabs}>
-          {(["overview", "matches", "mastery", "stats"] as const).map(tab => (
+          {(["overview", "matches", ...(game === "lol" ? ["mastery", "stats"] : [])] as const).map(tab => (
             <button
               key={tab}
               className={`${styles.tab} ${activeTab === tab ? styles.tabActive : ""}`}
-              onClick={() => setActiveTab(tab)}
+              onClick={() => setActiveTab(tab as "overview" | "matches" | "mastery" | "stats")}
             >
               {tab === "overview" ? "Overview" : tab === "matches" ? "Matches" : tab === "mastery" ? "Mastery" : "Stats"}
             </button>
           ))}
         </div>
 
-        {/* OVERVIEW TAB */}
-        {activeTab === "overview" && (
-          <div className={styles.overviewGrid}>
-            {/* Recent matches summary */}
-            <div className={styles.card}>
-              <div className={styles.cardTitle}>Recent Performance</div>
-              <div className={styles.perfRow}>
-                <div className={styles.wrCircle}>
-                  <svg viewBox="0 0 36 36" className={styles.wrSvg}>
-                    <circle cx="18" cy="18" r="15.9" fill="none" stroke="var(--line2)" strokeWidth="3" />
-                    <circle
-                      cx="18" cy="18" r="15.9" fill="none"
-                      stroke={recentWR >= 60 ? "var(--accent3)" : recentWR <= 40 ? "var(--danger)" : "var(--accent)"}
-                      strokeWidth="3"
-                      strokeDasharray={`${recentWR} ${100 - recentWR}`}
-                      strokeDashoffset="25"
-                      strokeLinecap="round"
-                    />
-                  </svg>
-                  <div className={styles.wrLabel}>{recentWR}%</div>
-                </div>
-                <div className={styles.perfStats}>
-                  <div className={styles.perfStat}><span>{recentWins}W / {recentTotal - recentWins}L</span><label>Record</label></div>
-                  <div className={styles.perfStat}><span>{avgKills}/{avgDeaths}/{avgAssists}</span><label>Avg KDA</label></div>
-                  <div className={styles.perfStat}>
-                    <span>{Number(avgDeaths) > 0 ? ((Number(avgKills) + Number(avgAssists)) / Number(avgDeaths)).toFixed(2) : "Perfect"}</span>
-                    <label>KDA Ratio</label>
-                  </div>
-                </div>
-              </div>
-            </div>
+        {/* TFT VIEW */}
+        {game === "tft" && (
+          <div style={{ marginTop: 24 }}>
+            <TFTMatchHistory matches={tftMatches} puuid={account?.puuid || ""} />
+          </div>
+        )}
 
-            {/* Top champions */}
-            <div className={styles.card}>
-              <div className={styles.cardTitle}>Top Champions (recent)</div>
-              <div className={styles.champList}>
-                {buildChampStats().slice(0, 5).map(([name, s]) => {
-                  const wr = Math.round(s.wins / s.games * 100);
-                  return (
-                    <div key={name} className={styles.champRow}>
-                      <Image src={champIconUrl(name)} alt={name} width={32} height={32} className={styles.champRowIcon} unoptimized />
-                      <div className={styles.champRowName}>{name}</div>
-                      <div className={styles.champRowGames}>{s.games}G</div>
-                      <div className={styles.champRowWR} style={{ color: wr >= 60 ? "var(--accent3)" : wr <= 40 ? "var(--danger)" : "var(--text)" }}>{wr}%</div>
-                      <div className={styles.champRowBar}>
-                        <div className={styles.champRowFill} style={{ width: `${wr}%`, background: wr >= 60 ? "var(--accent3)" : wr <= 40 ? "var(--danger)" : "var(--accent)" }} />
+        {/* LOL OVERVIEW TAB */}
+        {game === "lol" && activeTab === "overview" && (
+          <div className="flex flex-col gap-4">
+            {/* Top row: WinRateDonut & Top Champions side-by-side */}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <WinRateDonut
+                wins={recentWins}
+                losses={recentTotal - recentWins}
+                kills={avgKills}
+                deaths={avgDeaths}
+                assists={avgAssists}
+                label="Recent Performance"
+              />
+
+              {/* Top champions */}
+              <div className="p-4 rounded-xl bg-[#181E26] border border-[#232B36] flex flex-col justify-between">
+                <div className="text-[11px] font-bold uppercase tracking-wider text-[#A0A8B6] mb-2">
+                  Top Champions (Recent)
+                </div>
+                <div className="flex flex-col gap-2">
+                  {buildChampStats().slice(0, 4).map(([name, s]) => {
+                    const wr = Math.round((s.wins / s.games) * 100);
+                    return (
+                      <div key={name} className="flex items-center gap-2.5 text-xs">
+                        <Image
+                          src={champIconUrl(name)}
+                          alt={name}
+                          width={28}
+                          height={28}
+                          className="rounded-md object-cover border border-[#232B36]"
+                          unoptimized
+                        />
+                        <div className="w-24 font-semibold truncate text-[#F0E6D2]">
+                          {name}
+                        </div>
+                        <div className="text-[11px] text-[#A0A8B6] font-mono">
+                          {s.games}G
+                        </div>
+                        <div
+                          className="text-[11px] font-bold font-mono ml-auto"
+                          style={{
+                            color: wr >= 60 ? "#4B99C2" : wr <= 40 ? "#E84057" : "#F0E6D2",
+                          }}
+                        >
+                          {wr}%
+                        </div>
+                        <div className="w-20 h-1.5 bg-[#232B36] rounded-full overflow-hidden">
+                          <div
+                            className="h-full rounded-full transition-all duration-300"
+                            style={{
+                              width: `${wr}%`,
+                              backgroundColor: wr >= 60 ? "#4B99C2" : wr <= 40 ? "#E84057" : "#C4A15B",
+                            }}
+                          />
+                        </div>
                       </div>
-                    </div>
-                  );
-                })}
+                    );
+                  })}
+                </div>
               </div>
             </div>
 
             {/* Recent 5 matches */}
-            <div className={`${styles.card} ${styles.cardFull}`}>
-              <div className={styles.cardTitle}>Recent Matches</div>
-              <div className={styles.matchList}>
-                {playerMatches.slice(0, 5).map(({ match, participant }) =>
-                  renderMatchCard(match, participant!)
-                )}
+            <div className="flex flex-col gap-2.5">
+              <div className="text-[11px] font-bold uppercase tracking-wider text-[#A0A8B6] px-1">
+                Recent Matches
+              </div>
+              <div className="flex flex-col gap-2.5">
+                {playerMatches.slice(0, 5).map(({ match, participant }) => (
+                  <MatchHistoryRow
+                    key={match.metadata.matchId}
+                    match={match}
+                    participant={participant!}
+                    currentPuuid={account?.puuid}
+                    platform={platform}
+                  />
+                ))}
               </div>
             </div>
           </div>
         )}
 
-        {/* MATCHES TAB */}
-        {activeTab === "matches" && (
-          <div className={styles.matchesTab}>
-            <div className={styles.matchList}>
-              {playerMatches.map(({ match, participant }) =>
-                renderMatchCard(match, participant!, true)
-              )}
+        {/* LOL MATCHES TAB */}
+        {game === "lol" && activeTab === "matches" && (
+          <div className="flex flex-col gap-2.5">
+            <div className="text-[11px] font-bold uppercase tracking-wider text-[#A0A8B6] px-1">
+              Match History ({playerMatches.length} Games)
+            </div>
+            <div className="flex flex-col gap-2.5">
+              {playerMatches.map(({ match, participant }) => (
+                <MatchHistoryRow
+                  key={match.metadata.matchId}
+                  match={match}
+                  participant={participant!}
+                  currentPuuid={account?.puuid}
+                  platform={platform}
+                />
+              ))}
             </div>
           </div>
         )}
 
-        {/* MASTERY TAB */}
-        {activeTab === "mastery" && (
+        {/* LOL MASTERY TAB */}
+        {game === "lol" && activeTab === "mastery" && (
           <div className={styles.masteryGrid}>
             {mastery.map((m) => (
               <div key={m.championId} className={styles.masteryCard}>
                 <div className={styles.masteryIconWrap}>
                   <div className={styles.masteryLevel}>M{m.championLevel}</div>
                 </div>
-                <div className={styles.masteryName}>Champion {m.championId}</div>
+                <div className={styles.masteryName}>Champion #{m.championId}</div>
                 <div className={styles.masteryPoints}>{formatNumber(m.championPoints)} pts</div>
                 <div className={styles.masteryBar}>
                   <div
@@ -371,11 +398,11 @@ export default function PlayerPageClient({ gameName, tagLine, platform, game }: 
           </div>
         )}
 
-        {/* STATS TAB */}
-        {activeTab === "stats" && (
+        {/* LOL STATS TAB */}
+        {game === "lol" && activeTab === "stats" && (
           <div className={styles.statsTab}>
             <div className={styles.card}>
-              <div className={styles.cardTitle}>Win/Loss by Day (last 20 games)</div>
+              <div className={styles.cardTitle}>Win/Loss by Day (recent games)</div>
               <div className={styles.wlChart}>
                 {winLossData.map((d) => (
                   <div key={d.date} className={styles.wlBar}>
@@ -468,101 +495,5 @@ export default function PlayerPageClient({ gameName, tagLine, platform, game }: 
       stats[name].cs += (p.totalMinionsKilled || 0) + (p.neutralMinionsKilled || 0);
     }
     return Object.entries(stats).sort((a, b) => b[1].games - a[1].games);
-  }
-
-  function renderMatchCard(match: Match, p: MatchParticipant, expandable = false) {
-    const win = p.win;
-    const champ = p.championName || "?";
-    const cs = (p.totalMinionsKilled || 0) + (p.neutralMinionsKilled || 0);
-    const mins = Math.floor(match.info.gameDuration / 60);
-    const secs = match.info.gameDuration % 60;
-    const queueLabel = QUEUE_LABELS[match.info.queueId] || "Game";
-    const kda = p.deaths > 0 ? ((p.kills + p.assists) / p.deaths).toFixed(2) : "Perfect";
-    const dmg = p.totalDamageDealtToChampions || 0;
-    const isExpanded = expandedMatch === match.metadata.matchId;
-    const items = [p.item0, p.item1, p.item2, p.item3, p.item4, p.item5, p.item6].filter(Boolean) as number[];
-
-    return (
-      <div key={match.metadata.matchId} className={`${styles.matchCard} ${win ? styles.matchWin : styles.matchLoss}`}>
-        <div className={styles.matchBar} />
-        <div className={styles.matchChamp}>
-          <Image src={champIconUrl(champ)} alt={champ} width={44} height={44} className={styles.matchChampImg} unoptimized />
-          <div className={styles.matchChampLevel}>Lv.{p.champLevel}</div>
-        </div>
-        <div className={styles.matchMain}>
-          <div className={styles.matchTopRow}>
-            <span className={styles.matchQueue}>{queueLabel}</span>
-            <span className={styles.matchTime}>{formatAgo(match.info.gameStartTimestamp)}</span>
-          </div>
-          <div className={styles.matchKDA}>
-            <span className={win ? styles.kdaWin : styles.kdaLoss}>{p.kills}</span>
-            <span className={styles.kdaSlash}> / </span>
-            <span className={styles.kdaDeath}>{p.deaths}</span>
-            <span className={styles.kdaSlash}> / </span>
-            <span>{p.assists}</span>
-            <span className={styles.kdaRatio}>{kda} KDA</span>
-          </div>
-          <div className={styles.matchMeta}>
-            {cs} CS · {mins}m {secs}s · {Math.round(dmg / 1000)}k dmg
-          </div>
-          {/* Items */}
-          <div className={styles.itemRow}>
-            {items.map((itemId, i) => (
-              <Image key={i} src={itemIconUrl(itemId)} alt={`item${i}`} width={22} height={22} className={styles.itemIcon} unoptimized />
-            ))}
-            {p.pentaKills ? <span className={styles.pentaTag}>PENTA!</span>
-              : p.quadraKills ? <span className={styles.quadraTag}>QUADRA</span>
-              : p.tripleKills ? <span className={styles.tripleTag}>TRIPLE</span> : null}
-          </div>
-        </div>
-        <div className={styles.matchRight}>
-          <div className={`${styles.matchResult} ${win ? styles.matchWinLabel : styles.matchLossLabel}`}>{win ? "WIN" : "LOSS"}</div>
-          {expandable && (
-            <button className={styles.expandBtn} onClick={() => setExpandedMatch(isExpanded ? null : match.metadata.matchId)}>
-              {isExpanded ? "▲" : "▼"}
-            </button>
-          )}
-        </div>
-
-        {/* EXPANDED SCOREBOARD */}
-        {isExpanded && expandable && (
-          <div className={styles.scoreboard}>
-            {[100, 200].map(teamId => {
-              const team = match.info.participants.filter(x => x.teamId === teamId);
-              const teamObj = match.info.teams?.find(t => t.teamId === teamId);
-              return (
-                <div key={teamId} className={styles.scoreboardTeam}>
-                  <div className={`${styles.scoreboardHeader} ${teamObj?.win ? styles.sbWin : styles.sbLoss}`}>
-                    {teamObj?.win ? "Victory" : "Defeat"} · {teamId === 100 ? "Blue" : "Red"} Side
-                    {teamObj?.objectives && (
-                      <span className={styles.sbObj}>
-                        🏰 {teamObj.objectives.tower?.kills || 0} · 🐉 {teamObj.objectives.dragon?.kills || 0} · 🦁 {teamObj.objectives.baron?.kills || 0}
-                      </span>
-                    )}
-                  </div>
-                  {team.map(tp => {
-                    const isMe = tp.puuid === account?.puuid;
-                    const tpItems = [tp.item0, tp.item1, tp.item2, tp.item3, tp.item4, tp.item5].filter(Boolean) as number[];
-                    return (
-                      <div key={tp.puuid} className={`${styles.sbRow} ${isMe ? styles.sbRowMe : ""}`}>
-                        <Image src={champIconUrl(tp.championName || "?")} alt={tp.championName || ""} width={28} height={28} className={styles.sbChamp} unoptimized />
-                        <div className={styles.sbName}>{tp.riotIdGameName || tp.summonerName || "Player"}</div>
-                        <div className={styles.sbKDA}>{tp.kills}/{tp.deaths}/{tp.assists}</div>
-                        <div className={styles.sbDmg}>{Math.round((tp.totalDamageDealtToChampions || 0) / 1000)}k</div>
-                        <div className={styles.sbItems}>
-                          {tpItems.map((id, i) => (
-                            <Image key={i} src={itemIconUrl(id)} alt="item" width={18} height={18} className={styles.sbItem} unoptimized />
-                          ))}
-                        </div>
-                      </div>
-                    );
-                  })}
-                </div>
-              );
-            })}
-          </div>
-        )}
-      </div>
-    );
   }
 }

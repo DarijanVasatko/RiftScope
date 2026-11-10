@@ -1,32 +1,32 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import styles from "./SearchPage.module.css";
 import {
-  LOL_PLATFORMS, VAL_PLATFORMS, playerUrl,
-  getSearchHistory, getFavorites, getTheme, setTheme
+  LOL_PLATFORMS, VAL_PLATFORMS, REGION_DISPLAY_NAMES, playerUrl,
+  getSearchHistory, getFavorites, getTheme, setTheme, useIsClient
 } from "@/lib/client";
 import { SearchHistoryEntry, Game } from "@/lib/types";
 
 export default function SearchPage() {
   const router = useRouter();
+  const isClient = useIsClient();
   const [game, setGame] = useState<Game>("lol");
   const [gameName, setGameName] = useState("");
   const [tagLine, setTagLine] = useState("");
   const [platform, setPlatform] = useState("na1");
   const [error, setError] = useState("");
-  const [history] = useState<SearchHistoryEntry[]>(() => getSearchHistory());
-  const [favorites] = useState<SearchHistoryEntry[]>(() => getFavorites());
-  const [theme, setThemeState] = useState<"dark" | "light">(() => getTheme());
   const [activePanel, setActivePanel] = useState<"history" | "favorites">("history");
+  const [themeOverride, setThemeOverride] = useState<"dark" | "light" | null>(null);
 
   const platforms = game === "val" ? VAL_PLATFORMS : LOL_PLATFORMS;
 
-  useEffect(() => {
-    document.documentElement.setAttribute("data-theme", theme);
-  }, [theme]);
+  // Read from localStorage only on client
+  const history: SearchHistoryEntry[] = isClient ? getSearchHistory() : [];
+  const favorites: SearchHistoryEntry[] = isClient ? getFavorites() : [];
+  const theme = themeOverride ?? (isClient ? getTheme() : "dark");
 
   function switchGame(g: Game) {
     setGame(g);
@@ -36,14 +36,39 @@ export default function SearchPage() {
 
   function handleTheme() {
     const next = theme === "dark" ? "light" : "dark";
-    setThemeState(next);
+    setThemeOverride(next);
     setTheme(next);
+    document.documentElement.setAttribute("data-theme", next);
+  }
+
+  function handleNameChange(val: string) {
+    const hashIdx = val.indexOf("#");
+    if (hashIdx !== -1) {
+      setGameName(val.slice(0, hashIdx));
+      setTagLine(val.slice(hashIdx + 1).trim());
+    } else {
+      setGameName(val);
+    }
+  }
+
+  function handleTagChange(val: string) {
+    setTagLine(val.replace(/^#/, ""));
   }
 
   function search() {
-    const name = gameName.trim();
-    const tag = tagLine.trim();
-    if (!name || !tag) { setError("Enter both a game name and tag."); return; }
+    let name = gameName.trim();
+    let tag = tagLine.trim().replace(/^#/, "");
+
+    if (name.includes("#") && !tag) {
+      const parts = name.split("#");
+      name = parts[0].trim();
+      tag = parts.slice(1).join("#").trim();
+    }
+
+    if (!name || !tag) {
+      setError("Enter both a game name and tag.");
+      return;
+    }
     setError("");
     router.push(playerUrl(name, tag, platform, game));
   }
@@ -91,7 +116,7 @@ export default function SearchPage() {
                   type="text"
                   placeholder="GameName"
                   value={gameName}
-                  onChange={e => setGameName(e.target.value)}
+                  onChange={e => handleNameChange(e.target.value)}
                   onKeyDown={e => e.key === "Enter" && search()}
                   autoComplete="off"
                 />
@@ -100,7 +125,7 @@ export default function SearchPage() {
                   type="text"
                   placeholder="TAG"
                   value={tagLine}
-                  onChange={e => setTagLine(e.target.value)}
+                  onChange={e => handleTagChange(e.target.value)}
                   onKeyDown={e => e.key === "Enter" && search()}
                   autoComplete="off"
                   style={{ maxWidth: 90 }}
@@ -112,7 +137,7 @@ export default function SearchPage() {
                 onChange={e => setPlatform(e.target.value)}
               >
                 {platforms.map(p => (
-                  <option key={p} value={p}>{p.toUpperCase().replace(/\d/g, "")}</option>
+                  <option key={p} value={p}>{REGION_DISPLAY_NAMES[p] || p.toUpperCase()}</option>
                 ))}
               </select>
             </div>
@@ -125,8 +150,8 @@ export default function SearchPage() {
           {error && <div className={styles.statusBar}>{error}</div>}
         </section>
 
-        {/* HISTORY + FAVORITES */}
-        {(history.length > 0 || favorites.length > 0) && (
+        {/* Only render history/favorites on client — server always renders nothing here */}
+        {isClient && (history.length > 0 || favorites.length > 0) && (
           <div className={styles.recentSection}>
             <div className={styles.recentTabs}>
               <button
@@ -153,7 +178,7 @@ export default function SearchPage() {
                     {entry.gameName}
                     <span className={styles.recentTag}>#{entry.tagLine}</span>
                   </div>
-                  <div className={styles.recentPlatform}>{entry.platform.toUpperCase().replace(/\d/g, "")}</div>
+                  <div className={styles.recentPlatform}>{REGION_DISPLAY_NAMES[entry.platform] || entry.platform.toUpperCase()}</div>
                 </button>
               ))}
             </div>
